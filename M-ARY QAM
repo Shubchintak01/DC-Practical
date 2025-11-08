@@ -1,0 +1,84 @@
+clc; clear; close all;
+
+% Parameters
+M = 16;                       % Modulation order (e.g., 16 for 16-QAM)
+k = log2(M);                  % Bits per symbol
+numSymbols = 1e5;             % Number of symbols
+snr_dB = 0:2:20;              % SNR range (in dB)
+ber = zeros(length(snr_dB),1);
+
+% Generate random data symbols
+data = randi([0 M-1], numSymbols, 1);
+
+% ----------------------------
+% MANUAL QAM MODULATION
+% ----------------------------
+% Generate constellation points (square QAM)
+m_side = sqrt(M);
+if rem(m_side,1) ~= 0
+    error('M must be a perfect square for square QAM (e.g., 4, 16, 64, 256).');
+end
+
+% Gray-coded mapping (optional but standard)
+I = mod(data, m_side);
+Q = floor(data / m_side);
+
+% Center constellation around zero
+I = 2*I - m_side + 1;
+Q = 2*Q - m_side + 1;
+
+% Normalized average power to 1
+txSig = (I + 1j*Q);
+txSig = txSig / sqrt(mean(abs(txSig).^2));
+
+% ----------------------------
+% TRANSMISSION OVER AWGN CHANNEL
+% ----------------------------
+for i = 1:length(snr_dB)
+    SNR_linear = 10^(snr_dB(i)/10);
+    signal_power = mean(abs(txSig).^2);
+    noise_power = signal_power / SNR_linear;
+    noise = sqrt(noise_power/2) * (randn(size(txSig)) + 1j*randn(size(txSig)));
+    rxSig = txSig + noise;
+
+    % ----------------------------
+    % MANUAL QAM DEMODULATION
+    % ----------------------------
+    % Scale back to original amplitude range
+    rxI = real(rxSig) * sqrt(mean(abs(txSig).^2));
+    rxQ = imag(rxSig) * sqrt(mean(abs(txSig).^2));
+
+    % Decision boundaries
+    I_hat = round((rxI + m_side - 1) / 2);
+    Q_hat = round((rxQ + m_side - 1) / 2);
+
+    % Clip to valid range
+    I_hat(I_hat < 0) = 0; I_hat(I_hat > m_side-1) = m_side-1;
+    Q_hat(Q_hat < 0) = 0; Q_hat(Q_hat > m_side-1) = m_side-1;
+
+    % Recombine to get detected symbols
+    rxData = Q_hat * m_side + I_hat;
+
+    % Count symbol errors
+    numSymErr = sum(rxData ~= data);
+    ber(i) = numSymErr / numSymbols / k;  % approximate BER
+end
+
+% ----------------------------
+% PLOT BER vs SNR
+% ----------------------------
+figure;
+semilogy(snr_dB, ber, '-o', 'LineWidth', 1.5);
+grid on;
+xlabel('SNR (dB)');
+ylabel('Bit Error Rate (BER)');
+title(['Performance of ', num2str(M), '-QAM in AWGN Channel']);
+
+% ----------------------------
+% CONSTELLATION DIAGRAM (last SNR)
+% ----------------------------
+figure;
+plot(real(rxSig), imag(rxSig), '.', 'MarkerSize', 5);
+axis equal; grid on;
+xlabel('In-phase'); ylabel('Quadrature');
+title(['Constellation Diagram of ', num2str(M), '-QAM at SNR = ', num2str(snr_dB(end)), ' dB']);
