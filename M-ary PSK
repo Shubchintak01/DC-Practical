@@ -1,0 +1,44 @@
+clc;
+clear all;
+close all;
+
+M = input('Number of symbols (M)=');
+SNR_dB = input('SNR of M-ary PSK system in dB=');
+
+% Generate random symbols (0 to M-1)
+x1 = randi([0 M-1], 1, M); % Note: The document code has 'M' elements, not 100.
+
+% PSK Modulation (manual)
+theta = 2*pi*x1/M % phase for each symbol
+y1 = exp(1j*theta) % M-PSK signal
+
+% Convert SNR from dB to linear
+SNR_linear = 10^(SNR_dB/10)
+
+% Compute signal power and noise power
+signal_power = mean(abs(y1).^2);
+noise_power = signal_power / SNR_linear;
+
+% Generate complex Gaussian noise
+noise = sqrt(noise_power/2)*(randn(size(y1))+1j*randn(size(y1)));
+
+% Add noise to signal
+y1n = y1 + noise;
+
+% Plot constellation (basic)
+figure;
+plot(real(y1n), imag(y1n), 'o');
+title([num2str(M), '-PSK Constellation with SNR = ', num2str(SNR_dB), 'dB']);
+xlabel('In-phase');
+ylabel('Quadrature');
+axis equal; grid on;
+
+% PSK Demodulation (manual)
+y1r = mod(round((angle(y1n)/(2*pi))*M), M);
+
+% Error Calculation
+num_error = sum(x1 = y1r); % Note: Fixed comparison operator from '=' to '='
+er_rate = num_error/length(x1);
+
+fprintf('Number of symbol errors = %d\n', num_error);
+fprintf('Symbol error rate = %f\n', er_rate);
