@@ -1,0 +1,87 @@
+clc;
+clear all;
+close all;
+
+% --- Inputs ---
+m = input('Enter number of symbols = ');
+p = zeros(1, m);
+for i = 1:m
+    p(i) = input(sprintf('Probability of symbol %d = ', i));
+end
+p = p/sum(p); % normalize
+
+% --- Initialize nodes and codes
+symbols = 1:m;
+nodesProb = p(:)'; % row vector of probabilities
+nodesSymbols = cell(1, m); % each cell holds the list of symbols in that node
+for i = 1:m
+    nodesSymbols{i} = i;
+end
+codes = cell(1, m); % codes {symbol} holds its code (string)
+for i = 1:m, codes{i} = ''; end
+
+% --- Build Huffman codes (iterative merge)
+while numel(nodesProb) > 1
+    [~, idx] = sort(nodesProb); % sort ascending
+    i1 = idx(1); i2 = idx(2); % two smallest
+
+    % prepend bits: choose '0' for first, '1' for second (arbitrary)
+    for s = nodesSymbols{i1}
+        codes{s} = ['0' codes{s}];
+    end
+    for s = nodesSymbols{i2}
+        codes{s} = ['1' codes{s}];
+    end
+
+    % merge nodes: update i1, remove i2
+    nodesSymbols{i1} = [nodesSymbols{i1} nodesSymbols{i2}];
+    nodesProb(i1) = nodesProb(i1) + nodesProb(i2);
+    nodesSymbols(i2) = [];
+    nodesProb(i2) = [];
+end
+
+% --- Display codes ---
+disp('Huffman Codes:')
+for i = 1:m
+    fprintf('Symbol %d -> %s\n', i, codes{i});
+end
+
+% --- Metrics: average length, entropy, efficiency
+lenVec = cellfun(@length, codes);
+L = sum(p .* lenVec); % avg code length (bits/symbol)
+H = sum(p .* log2(1./p)); % entropy
+
+fprintf('\nAvg length = %.4f bits/symbol\n', L);
+fprintf('Entropy = %.4f bits/symbol\n', H);
+fprintf('Efficiency = %.2f%%\n\n', (H/L)*100);
+
+% --- Generate random message according to p (no randsrc) ---
+N = m; % test message length (you can change)
+cdf = cumsum(p);
+r = rand(N, 1);
+msg = arrayfun(@(x) find(cdf >= x, 1), r)'; % row vector of sampled symbols
+
+%--- Encode
+enc = '';
+for i = 1:N
+    enc = [enc codes{msg(i)}];
+end
+
+% --- Decode (simple prefix-match) ---
+dec = [];
+buf = '';
+for k = 1:length(enc)
+    buf = [buf enc(k)];
+    matched = false;
+    for s = 1:m
+        if strcmp(buf, codes{s})
+            dec = [dec s];
+            buf = '';
+            matched = true;
+            break;
+        end
+    end
+    % (if no match, continue accumulating bits)
+end
+
+fprintf('Encoding/Decoding OK? %d\n', isequal(msg, dec));
