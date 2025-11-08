@@ -1,0 +1,51 @@
+clc;
+clear all;
+close all;
+f=2; %frequency of sine wave
+fs=100; %sampling period of the sine wave
+t=0:1/fs:1; %splitting time into segments of 1/fs
+%setting the phase shifts for the different BPSK signals
+p1=0;
+p2=pi;
+%getting the number bits to be modulated
+N = input('enter the number of bits to be modulated: N=');
+%generating the random signal
+bit_sequence=round(rand(1,N));
+time =[];
+digital_signal = [];
+PSK = [];
+carrier_signal =[]
+%allocating the dynamic variables
+%GENERATING THE SIGNALS
+for ii = 1:1:N %the original digital signal is
+if bit_sequence(ii) == 0
+bit=zeros(1,length(t));
+else bit = ones(1,length(t));
+end
+digital_signal = [digital_signal bit]; %Generating the BPSK signal
+if bit_sequence(ii)==0
+bit=sin(2*pi*f*t+p1);
+else bit=sin(2*pi*f*t+p2);
+end
+PSK = [PSK bit];
+carrier=sin(2*f*t*pi);
+%Generating the carrier wave
+carrier_signal = [carrier_signal carrier];
+time = [time t];
+t=t+1;
+end
+subplot(3,1,1);
+plot(time,digital_signal,'r', 'linewidth',2);
+grid on;
+axis([0 time(end) -0.5 1.5]);
+title('Bit Sequence');
+subplot(3,1,2);
+plot(time, PSK, 'linewidth',2);
+grid on;
+axis tight;
+title('BPSK Modulated Signal');
+subplot(3,1,3);
+plot(time,carrier_signal, 'linewidth',2);
+grid on;
+axis tight;
+title('Carrier Signal');
